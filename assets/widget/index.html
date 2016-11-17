@@ -17,6 +17,7 @@
 
         function init() {
             var param = {
+                mode: 'noNetwork',
                 clientId: "credentials from developer.paypal.com"
             }
             uexPayPal.init(param);
@@ -26,7 +27,7 @@
             var param = {
                 amount: '56.9',
                 currency: "USD",
-                itemDesc: "just for test"
+                desc: "just for test"
             }
             uexPayPal.pay(param);
         }

@@ -22,18 +22,23 @@ import java.math.BigDecimal;
 
 public class EUExPayPal extends EUExBase {
 
-	public final String CLIENT_ID = "clientId";
-	public final String AMOUNT = "amount";
-	public final String CURRENCY = "currency";
-	public final String ITEM_DESC = "itemDesc";
+    public final String CLIENT_ID = "clientId";
+    public final String MODE = "mode";
+    public final String AMOUNT = "amount";
+    public final String CURRENCY = "currency";
+    public final String DESC = "desc";
     public final String CALLBACK_PAY = "uexPayPal.cbPay";
 
+    public final String MODE_PRODUCTION = "production";
+    public final String MODE_SANDBOX = "sandbox";
+    public final String MODE_NO_NETWORK = "noNetwork";
     public final String TAG = "EUExPayPal";
 
-    public EUExPayPal(Context context, EBrowserView eBrowserView) {
-		super(context, eBrowserView);
 
-	}
+    public EUExPayPal(Context context, EBrowserView eBrowserView) {
+        super(context, eBrowserView);
+
+    }
 
     PayPalConfiguration config = null;
 
@@ -42,27 +47,42 @@ public class EUExPayPal extends EUExBase {
             return;
         }
         String clientId = null;
+        String mode  = null;
         try {
             JSONObject json = new JSONObject(params[0]);
             clientId = json.optString(CLIENT_ID, null);
+            mode = json.optString(MODE, null);
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        if (TextUtils.isEmpty(clientId) || clientId.contains(" ")) {
+
+        //默认生产环境
+        if (TextUtils.isEmpty(mode)) {
+            mode = MODE_PRODUCTION;
+        }
+        if (!MODE_SANDBOX.equalsIgnoreCase(mode) && !MODE_PRODUCTION.equalsIgnoreCase(mode) && !MODE_NO_NETWORK.equals(mode)) {
+            Log.i(TAG, "invalid mode");
+        }
+        //将mode值转成paypal所能识别的
+        if (MODE_SANDBOX.equalsIgnoreCase(mode)) {
+            mode = MODE_SANDBOX;
+        } else if (MODE_NO_NETWORK.equalsIgnoreCase(mode)) {
+            mode = PayPalConfiguration.ENVIRONMENT_NO_NETWORK;
+        } else {
+            mode = PayPalConfiguration.ENVIRONMENT_PRODUCTION;
+        }
+        //非测试环境下对clientId进行校验
+        if ((mode != PayPalConfiguration.ENVIRONMENT_NO_NETWORK) && (TextUtils.isEmpty(clientId) || clientId.contains(" "))) {
             Log.i(TAG, "invalid clientId");
             return;
         }
         config = new PayPalConfiguration()
-                .environment(PayPalConfiguration.ENVIRONMENT_SANDBOX)
+                .environment(mode)
                 .clientId(clientId);
-        //Just for testing.
-//        config = new PayPalConfiguration()
-//                .environment(PayPalConfiguration.ENVIRONMENT_NO_NETWORK)
-//                .clientId(clientId);
         Intent intent = new Intent(mContext, PayPalService.class);
         intent.putExtra(PayPalService.EXTRA_PAYPAL_CONFIGURATION, config);
         mContext.startService(intent);
-	}
+    }
 
     public void pay(String [] params) {
         if (config == null) {
@@ -76,7 +96,7 @@ public class EUExPayPal extends EUExBase {
             JSONObject json = new JSONObject(params[0]);
             String amount = json.optString(AMOUNT);
             String currency = json.optString(CURRENCY, "CNY");
-            String itemDesc = json.optString(ITEM_DESC);
+            String itemDesc = json.optString(DESC);
             PayPalPayment payment = new PayPalPayment(new BigDecimal(amount), currency, itemDesc,
                     PayPalPayment.PAYMENT_INTENT_SALE);
 
@@ -93,15 +113,15 @@ public class EUExPayPal extends EUExBase {
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
         try {
             JSONObject obj = new JSONObject();
-            if (requestCode == Activity.RESULT_OK) {
+            if (resultCode == Activity.RESULT_OK) {
                 PaymentConfirmation confirm = intent.getParcelableExtra(PaymentActivity.EXTRA_RESULT_CONFIRMATION);
                 obj.put("status", 0);
                 obj.put("data", confirm.toJSONObject());
                 callBackJsObject(CALLBACK_PAY, obj);
-            } else if (requestCode == Activity.RESULT_CANCELED) {
+            } else if (resultCode == Activity.RESULT_CANCELED) {
                 obj.put("status", 1);
                 callBackJsObject(CALLBACK_PAY, obj);
-            } else if (requestCode == PaymentActivity.RESULT_EXTRAS_INVALID) {
+            } else if (resultCode == PaymentActivity.RESULT_EXTRAS_INVALID) {
                 obj.put("status", 2);
                 callBackJsObject(CALLBACK_PAY, obj);
             }
@@ -111,8 +131,7 @@ public class EUExPayPal extends EUExBase {
     }
 
     @Override
-	protected boolean clean() {
-		return true;
-	}
-
+    protected boolean clean() {
+        return true;
+    }
 }
