@@ -9,7 +9,7 @@
     <script type="text/javascript">
 
         window.uexOnload = function () {
-
+            //3.0
             uexPayPal.cbPay = function (data) {
                 document.getElementById("response").innerHTML = JSON.stringify(data);
             }
@@ -17,6 +17,7 @@
 
         function init() {
             var param = {
+                mode : 'noNetwork',
                 clientId: "credentials from developer.paypal.com"
             }
             uexPayPal.init(param);
@@ -26,9 +27,18 @@
             var param = {
                 amount: '56.9',
                 currency: "USD",
-                itemDesc: "just for test"
+                desc: "just for test"
             }
-            uexPayPal.pay(param);
+            uexPayPal.pay(param, function(error, data) {
+                alert('data:' + JSON.stringify(data));
+            });
+            /**
+            result 的结构如下:
+            {
+                error: // 0: 成功， 1: 取消， 2:参数异常
+                data: //支付成功后返回的信息
+            }
+            */
         }
     </script>
 </head>
